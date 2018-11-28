@@ -4,18 +4,38 @@
 ### Assignment 1: Bitcoin Various Topics
 1. A malicious ISP can launch such an attack, it just has to send a transaction to the blockchain at the same time the
 user sends one. To succeed with the attack, the ISP can try to bribe the next node, which can belong to the ISP, to
-extend the block containing the double spend.
+extend the block containing the double spend, or find the next block by itself. 
 
 2.
-    a) To determine which block will end up on the consensus branch,  
-    b) Blubb  
-    c) B  
+    a) The next block to be found determines which block ends up in the consensus branch. If Minnie's block has a successor
+       first, all miners switch to this branch and her block is in the consensus branch, same applies to Mynie's block.
+       In the case blocks are found at the same time again, this process repeats until one chain is longer than the other.    
+    b) The rate of orphan blocks increases with the amount of any latency. This includes at first the network latency.
+       Furthermore, any form of buffering and querying at the nodes, may it be in the hardware or in the software,
+       affects the rate of orphan blocks. Because of all these factors to be taken into account, it is difficult to develop
+       a solid formula.
+    c) Taking data from here (https://api.blockchain.info/charts/n-orphaned-blocks?timespan=all&format=json), there are 527
+       orphan blocks (29th November 2018). The rate of orphan blocks therefore is less then 0.3%.  
     d) She has not wasted her effort. In fact, she can confirm Minnies block and so tells other participants to trust this
     block.
       
-3. The probability to find a block in the next 10 minutes is: Pr(Find block in next 10 minutes) = 1 - e^-1
+3. As the mining is a Poisson process, we can use this formula:
+   
+      <a href="https://www.codecogs.com/eqnedit.php?latex=p(x|\lambda)&space;=&space;\frac{e^{-\lambda}&space;*&space;\lambda^{x}}{x!}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?p(x|\lambda)&space;=&space;\frac{e^{-\lambda}&space;*&space;\lambda^{x}}{x!}" title="p(x|\lambda) = \frac{e^{-\lambda} * \lambda^{x}}{x!}" /></a>
+      
+   We set <a href="https://www.codecogs.com/eqnedit.php?latex=\lambda&space;=&space;1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\lambda&space;=&space;1" title="\lambda = 1" /></a>
+   as this variable determines the difference to the mean time of 10 minutes.
+   The probability to find a block in the next 10 minutes then is:  
+   
+   <a href="https://www.codecogs.com/eqnedit.php?latex=P(1)&space;=&space;1&space;-&space;P(0)&space;=&space;1&space;-&space;e^{-1}&space;\approx&space;63.2%" target="_blank"><img src="https://latex.codecogs.com/gif.latex?P(1)&space;=&space;1&space;-&space;P(0)&space;=&space;1&space;-&space;e^{-1}&space;\approx&space;63.2%" title="P(1) = 1 - P(0) = 1 - e^{-1} \approx 63.2%" /></a>
 
-4. f
+4. We want to know:
+
+   <a href="https://www.codecogs.com/eqnedit.php?latex=p(x&space;\geq&space;6|\lambda)&space;=&space;1&space;-&space;p(5|\lambda)&space;-&space;p(4|\lambda)&space;-&space;p(3|\lambda)&space;-&space;p(2|\lambda)&space;-&space;p(1|\lambda)&space;-&space;p(0|\lambda)&space;=&space;0.99" target="_blank"><img src="https://latex.codecogs.com/gif.latex?p(x&space;\geq&space;6|\lambda)&space;=&space;1&space;-&space;p(5|\lambda)&space;-&space;p(4|\lambda)&space;-&space;p(3|\lambda)&space;-&space;p(2|\lambda)&space;-&space;p(1|\lambda)&space;-&space;p(0|\lambda)&space;=&space;0.99" title="p(x \geq 6|\lambda) = 1 - p(5|\lambda) - p(4|\lambda) - p(3|\lambda) - p(2|\lambda) - p(1|\lambda) - p(0|\lambda) = 0.99" /></a>
+   
+   When we do all the math, we get <a href="https://www.codecogs.com/eqnedit.php?latex=\lambda&space;\approx&space;13.1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\lambda&space;\approx&space;13.1" title="\lambda \approx 13.1" /></a>
+   which means Bob should wait 131 minutes as <a href="https://www.codecogs.com/eqnedit.php?latex=\lambda" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\lambda" title="\lambda" /></a>
+   tells us how many times we should take the mean time to find a block of 10 minutes.
 
 ### Assignment 2: Validation of transactions
 #### scroogeCoin.TxHandler.java
@@ -83,9 +103,9 @@ extend the block containing the double spend.
          * updating the current scroogeCoin.UTXO pool as appropriate.
          */
         public Transaction[] handleTxs(Transaction[] possibleTxs) {
-            Transaction[] validTransactions = (Transaction[]) Arrays.asList(possibleTxs).parallelStream()
+            Transaction[] validTransactions = Arrays.stream(possibleTxs)
                     .filter(this::isValidTx) // Only get all valid transactions
-                    .toArray(); // Return the filtered transactions as an array
+                    .toArray(Transaction[]::new); // Return the filtered transactions as an array
     
             // Update the UTXOPool
             Arrays.stream(validTransactions).forEach(tx -> {
