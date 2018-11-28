@@ -61,9 +61,9 @@ public class TxHandler {
      * updating the current scroogeCoin.UTXO pool as appropriate.
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
-        Transaction[] validTransactions = (Transaction[]) Arrays.asList(possibleTxs).parallelStream()
+        Transaction[] validTransactions = Arrays.stream(possibleTxs)
                 .filter(this::isValidTx) // Only get all valid transactions
-                .toArray(); // Return the filtered transactions as an array
+                .toArray(Transaction[]::new); // Return the filtered transactions as an array
 
         // Update the UTXOPool
         Arrays.stream(validTransactions).forEach(tx -> {
