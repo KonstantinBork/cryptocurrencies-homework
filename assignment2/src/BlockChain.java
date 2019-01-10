@@ -18,18 +18,21 @@ public class BlockChain {
      * block
      */
     public BlockChain(Block genesisBlock) {
+        // Generate a map in which all blocks are stored, and store the genesis block there
         blockMap = new HashMap<>();
         ByteArrayWrapper genesisBlockHash = new ByteArrayWrapper(genesisBlock.getHash());
         blockMap.put(genesisBlockHash, genesisBlock);
 
+        // Initialise a list in which the hashes of all highest blocks are stored
         highestBlocks = new ArrayList<>();
         highestBlocks.add(genesisBlockHash);
 
+        // Initialise a map which stores all unprocessed transaction outputs
         unprocessedTransactionOutputs = new HashMap<>();
         unprocessedTransactionOutputs.put(genesisBlockHash, new UTXOPool());
 
+        // Initialise the global transaction pool
         globalTransactionPool = new TransactionPool();
-        highestBlocks = new ArrayList<>();
     }
 
     /**
@@ -46,6 +49,10 @@ public class BlockChain {
         return unprocessedTransactionOutputs.get(getHighestBlockHash());
     }
 
+    /**
+     * Gets the hash of the highest block in the blockchain.
+     * @return The first element in the list of highest blocks as it is the oldest one.
+     */
     private ByteArrayWrapper getHighestBlockHash() {
         return highestBlocks.get(0);
     }
@@ -118,7 +125,14 @@ public class BlockChain {
      * Add a transaction to the transaction pool
      */
     public void addTransaction(Transaction tx) {
+        // Put the transaction into the transaction pool first
         globalTransactionPool.addTransaction(tx);
+
+        // Then, add all outputs to the UTXOPool of the highest block
+        List<Transaction.Output> outputs = tx.getOutputs();
+        for(int i = 0; i < tx.numOutputs(); i++) {
+            getMaxHeightUTXOPool().addUTXO(new UTXO(tx.getHash(), i), outputs.get(i));
+        }
     }
 
     /**

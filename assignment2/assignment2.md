@@ -55,3 +55,7 @@ deleted key can then be restored from this seed. After restoring the keys, they 
 and transfer all Bitcoins to the new wallet.
 
 ### Assignment 4: Node in a blockchain
+The source code can be found in the zip file.  
+Due to the current TxHandler implementation, the test code in Main does not run. With another implementation of TxHandler,
+the BlockChain code may run. Maybe the mistake is in the usage of the PublicKey implementation used in Main. All in all,
+the BlockChain implementation should be retested with a reference implementation of TxHandler.
