@@ -29,7 +29,10 @@ public class BlockChain {
 
         // Initialise a map which stores all unprocessed transaction outputs
         unprocessedTransactionOutputs = new HashMap<>();
-        unprocessedTransactionOutputs.put(genesisBlockHash, new UTXOPool());
+        UTXO utxo = new UTXO(genesisBlock.getCoinbase().getHash(), 0);
+        UTXOPool utxoPool = new UTXOPool();
+        utxoPool.addUTXO(utxo, genesisBlock.getCoinbase().getOutput(0));
+        unprocessedTransactionOutputs.put(genesisBlockHash, utxoPool);
 
         // Initialise the global transaction pool
         globalTransactionPool = new TransactionPool();
@@ -46,11 +49,13 @@ public class BlockChain {
      * Get the UTXOPool for mining a new block on top of max height block
      */
     public UTXOPool getMaxHeightUTXOPool() {
-        return unprocessedTransactionOutputs.get(getHighestBlockHash());
+        ByteArrayWrapper highestBlockHash = getHighestBlockHash();
+        return unprocessedTransactionOutputs.get(highestBlockHash);
     }
 
     /**
      * Gets the hash of the highest block in the blockchain.
+     *
      * @return The first element in the list of highest blocks as it is the oldest one.
      */
     private ByteArrayWrapper getHighestBlockHash() {
@@ -89,8 +94,7 @@ public class BlockChain {
         }
 
         // Validate the block transactions
-        ByteArrayWrapper blockHash = new ByteArrayWrapper(block.getHash());
-        UTXOPool utxoPool = unprocessedTransactionOutputs.get(blockHash);
+        UTXOPool utxoPool = unprocessedTransactionOutputs.get(prevBlockHash);
         TxHandler txHandler = new TxHandler(utxoPool);
         List<Transaction> blockTransactions = block.getTransactions();
         Transaction[] validTXs = txHandler.handleTxs(blockTransactions.toArray(new Transaction[0]));
@@ -99,12 +103,28 @@ public class BlockChain {
         }
 
         // Add the block to the chain
+        ByteArrayWrapper blockHash = new ByteArrayWrapper(block.getHash());
         blockMap.put(blockHash, block);
 
         // Remove block transactions from pool
         block.getTransactions().forEach(
                 transaction -> globalTransactionPool.removeTransaction(transaction.getHash())
         );
+
+        // Add UTXOPool for the block
+        utxoPool = new UTXOPool();
+        Transaction coinBase = block.getCoinbase();
+        if (coinBase != null) {
+            UTXO utxo = new UTXO(coinBase.getHash(), 0);
+            utxoPool.addUTXO(utxo, coinBase.getOutput(0));
+        }
+        for (Transaction tx : blockTransactions) {
+            for (int j = 0; j < tx.numOutputs(); j++) {
+                UTXO utxo = new UTXO(tx.getHash(), j);
+                utxoPool.addUTXO(utxo, tx.getOutput(j));
+            }
+        }
+        unprocessedTransactionOutputs.put(blockHash, utxoPool);
 
         // If the parent block is on the highest level, remove it and add the new block to the list
         if (highestBlocks.contains(prevBlockHash)) {
@@ -127,12 +147,13 @@ public class BlockChain {
     public void addTransaction(Transaction tx) {
         // Put the transaction into the transaction pool first
         globalTransactionPool.addTransaction(tx);
-
+/*
         // Then, add all outputs to the UTXOPool of the highest block
         List<Transaction.Output> outputs = tx.getOutputs();
-        for(int i = 0; i < tx.numOutputs(); i++) {
+        for (int i = 0; i < tx.numOutputs(); i++) {
             getMaxHeightUTXOPool().addUTXO(new UTXO(tx.getHash(), i), outputs.get(i));
         }
+        */
     }
 
     /**
@@ -143,7 +164,7 @@ public class BlockChain {
         for (ByteArrayWrapper blockHash : highestBlocks) {
             int i = 0;
             Block block = blockMap.get(blockHash); // Used to go down the blockchain
-            while (block != null) {
+            while (block != null && block.getPrevBlockHash() != null) {
                 ByteArrayWrapper prevBlockHash = new ByteArrayWrapper(block.getPrevBlockHash());
                 block = blockMap.get(prevBlockHash);
                 i++;
