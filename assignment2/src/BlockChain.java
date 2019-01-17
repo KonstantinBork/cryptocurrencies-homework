@@ -10,12 +10,11 @@ public class BlockChain {
 
     private Map<ByteArrayWrapper, Block> blockMap; // Stores all blocks of the blockchain
     private Map<ByteArrayWrapper, UTXOPool> unprocessedTransactionOutputs; // Stores all UTXOPools
-    private TransactionPool globalTransactionPool;
-    private List<ByteArrayWrapper> highestBlocks;
+    private TransactionPool globalTransactionPool; // TransactionPool available in the whole application
+    private List<ByteArrayWrapper> highestBlocks; // List of all blocks which are on the top level
 
     /**
-     * create an empty block chain with just a genesis block. Assume {@code genesisBlock} is a valid
-     * block
+     * create an empty block chain with just a genesis block. Assume {@code genesisBlock} is a valid block
      */
     public BlockChain(Block genesisBlock) {
         // Generate a map in which all blocks are stored, and store the genesis block there
@@ -49,8 +48,7 @@ public class BlockChain {
      * Get the UTXOPool for mining a new block on top of max height block
      */
     public UTXOPool getMaxHeightUTXOPool() {
-        ByteArrayWrapper highestBlockHash = getHighestBlockHash();
-        return unprocessedTransactionOutputs.get(highestBlockHash);
+        return unprocessedTransactionOutputs.get(getHighestBlockHash());
     }
 
     /**
@@ -94,11 +92,7 @@ public class BlockChain {
         }
 
         // Validate the block transactions
-        UTXOPool utxoPool = unprocessedTransactionOutputs.get(prevBlockHash);
-        TxHandler txHandler = new TxHandler(utxoPool);
-        List<Transaction> blockTransactions = block.getTransactions();
-        Transaction[] validTXs = txHandler.handleTxs(blockTransactions.toArray(new Transaction[0]));
-        if (validTXs.length != blockTransactions.size()) {
+        if (!validateBlockTransactions(block)) {
             return false;
         }
 
@@ -111,30 +105,11 @@ public class BlockChain {
                 transaction -> globalTransactionPool.removeTransaction(transaction.getHash())
         );
 
-        // Add UTXOPool for the block
-        utxoPool = new UTXOPool();
-        Transaction coinBase = block.getCoinbase();
-        if (coinBase != null) {
-            UTXO utxo = new UTXO(coinBase.getHash(), 0);
-            utxoPool.addUTXO(utxo, coinBase.getOutput(0));
-        }
-        for (Transaction tx : blockTransactions) {
-            for (int j = 0; j < tx.numOutputs(); j++) {
-                UTXO utxo = new UTXO(tx.getHash(), j);
-                utxoPool.addUTXO(utxo, tx.getOutput(j));
-            }
-        }
-        unprocessedTransactionOutputs.put(blockHash, utxoPool);
+        // Add a new UTXOPool to the added block
+        addUtxoPoolToBlock(block);
 
         // If the parent block is on the highest level, remove it and add the new block to the list
-        if (highestBlocks.contains(prevBlockHash)) {
-            if (highestBlocks.size() > 1) {
-                highestBlocks = new ArrayList<>();
-            } else {
-                highestBlocks.remove(prevBlockHash);
-            }
-            highestBlocks.add(blockHash);
-        }
+        changeHighestBlock(blockHash, prevBlockHash);
 
         removeOldBlocks();
 
@@ -145,15 +120,72 @@ public class BlockChain {
      * Add a transaction to the transaction pool
      */
     public void addTransaction(Transaction tx) {
-        // Put the transaction into the transaction pool first
         globalTransactionPool.addTransaction(tx);
-/*
-        // Then, add all outputs to the UTXOPool of the highest block
-        List<Transaction.Output> outputs = tx.getOutputs();
-        for (int i = 0; i < tx.numOutputs(); i++) {
-            getMaxHeightUTXOPool().addUTXO(new UTXO(tx.getHash(), i), outputs.get(i));
+    }
+
+    /**
+     * Validates the transactions of the given block
+     * @param block The block with the transactions which should be validated
+     * @return true if all transactions are valid, otherwise false
+     */
+    private boolean validateBlockTransactions(Block block) {
+        UTXOPool utxoPool = unprocessedTransactionOutputs.get(new ByteArrayWrapper(block.getPrevBlockHash()));
+        TxHandler txHandler = new TxHandler(utxoPool);
+        List<Transaction> blockTransactions = block.getTransactions();
+        Transaction[] validTXs = txHandler.handleTxs(blockTransactions.toArray(new Transaction[0]));
+
+        if (validTXs.length == 0 || validTXs.length != blockTransactions.size()) {
+            // Remove all invalid transactions from the pool so they are not used in future blocks
+            List<Transaction> invalidTxs = new ArrayList<>(blockTransactions);
+            invalidTxs.removeAll(Arrays.asList(validTXs));
+            invalidTxs.forEach(
+                    transaction -> globalTransactionPool.removeTransaction(transaction.getHash())
+            );
+            return false;
         }
-        */
+
+        return true;
+    }
+
+    /**
+     * Adds a UTXOPool to the added block
+     * @param block The block to which the new UTXOPool should be added
+     */
+    private void addUtxoPoolToBlock(Block block) {
+        // Add UTXOPool for the block
+        UTXOPool utxoPool = new UTXOPool();
+
+        // First, check if coinbase exists and add its output to the pool
+        Transaction coinBase = block.getCoinbase();
+        if (coinBase != null) {
+            UTXO utxo = new UTXO(coinBase.getHash(), 0);
+            utxoPool.addUTXO(utxo, coinBase.getOutput(0));
+        }
+        // Then, add the outputs from all transactions
+        for (Transaction tx : block.getTransactions()) {
+            for (int i = 0; i < tx.numOutputs(); i++) {
+                UTXO utxo = new UTXO(tx.getHash(), i);
+                utxoPool.addUTXO(utxo, tx.getOutput(i));
+            }
+        }
+        unprocessedTransactionOutputs.put(new ByteArrayWrapper(block.getHash()), utxoPool);
+    }
+
+    /**
+     * Changes the list of highest blocks
+     *
+     * @param blockHash     Hash of the current block
+     * @param prevBlockHash Hash of the parent block
+     */
+    private void changeHighestBlock(ByteArrayWrapper blockHash, ByteArrayWrapper prevBlockHash) {
+        if (highestBlocks.contains(prevBlockHash)) {
+            if (highestBlocks.size() > 1) {
+                highestBlocks = new ArrayList<>();
+            } else {
+                highestBlocks.remove(prevBlockHash);
+            }
+            highestBlocks.add(blockHash);
+        }
     }
 
     /**
@@ -181,5 +213,14 @@ public class BlockChain {
             }
             blockNumber++;
         }
+    }
+
+    /**
+     * Function for test purposes to access single blocks in the blockchain.
+     * @param blockHash The hash of the requested block
+     * @return The block with the given hash
+     */
+    public Block getBlock(ByteArrayWrapper blockHash) {
+        return blockMap.get(blockHash);
     }
 }

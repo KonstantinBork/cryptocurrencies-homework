@@ -56,6 +56,7 @@ and transfer all Bitcoins to the new wallet.
 
 ### Assignment 4: Node in a blockchain
 The source code can be found in the src folder.  
-Due to the current TxHandler implementation, the test code in Main does not run. With another implementation of TxHandler,
-the BlockChain code may run. Maybe the mistake is in the usage of the PublicKey implementation used in Main. All in all,
-the BlockChain implementation should be retested with a reference implementation of TxHandler.
+For the given tests in Test.java, the blockchain works as intended. There are several try-catch-blocks missing to catch
+exceptions when transactions or blocks coming from the user are malformed. Furthermore, the UTXOPools are not updated,
+so double-spending might be possible. Last but not least, the code is not tested with concurrent requests, therefore
+there might be some flaws here as well. 
