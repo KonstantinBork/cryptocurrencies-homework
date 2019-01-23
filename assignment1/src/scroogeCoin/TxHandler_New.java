@@ -3,7 +3,7 @@ package scroogeCoin;
 import java.util.Arrays;
 import java.util.List;
 
-public class TxHandler {
+public class TxHandler_New {
 
     /**
      * Current collection of unspent transaction outputs
@@ -15,7 +15,7 @@ public class TxHandler {
      * {@code utxoPool}. This should make a copy of utxoPool by using the scroogeCoin.UTXOPool(scroogeCoin.UTXOPool uPool)
      * constructor.
      */
-    public TxHandler(UTXOPool utxoPool) {
+    public TxHandler_New(UTXOPool utxoPool) {
         this.utxoPool = new UTXOPool(utxoPool);
     }
 
@@ -29,30 +29,56 @@ public class TxHandler {
      * values; and false otherwise.
      */
     public boolean isValidTx(Transaction tx) {
+        List<Transaction.Input> allTxInputs = tx.getInputs();
         List<Transaction.Output> allTxOutputs = tx.getOutputs();
+
+        UTXOPool alreadySeenUTXOs = new UTXOPool();
+        boolean case1Matched = allTxInputs.stream().allMatch(
+                input -> {
+                    UTXO utxo = new UTXO(input.prevTxHash, allTxInputs.indexOf(input));
+
+                    // I did not think about already seen UTXOs
+                    if (alreadySeenUTXOs.contains(utxo)) {
+                        return false;
+                    }
+                    alreadySeenUTXOs.addUTXO(utxo, utxoPool.getTxOutput(utxo));
+
+                    return utxoPool.contains(utxo);
+                }
+        );
+        if (!case1Matched) {
+            return false;
+        }
+
+        boolean case2Matched = allTxInputs.stream().allMatch(
+                input -> {
+                    UTXO utxo = new UTXO(input.prevTxHash, input.outputIndex);
+                    int inputIndex = allTxInputs.indexOf(input);
+                    return input.signature != null
+                            && Crypto.verifySignature(utxoPool.getTxOutput(utxo).address, tx.getRawDataToSign(inputIndex), input.signature);
+                }
+        );
+
+        if (!case2Matched) {
+            return false;
+        }
+
         boolean case3Matched = allTxOutputs.stream().distinct().count() == tx.numOutputs();
         if (!case3Matched) {
             return false;
         }
 
-        boolean case1And4Matched = allTxOutputs.stream() // Inputs have to be taken here
-                .allMatch(output ->
-                        utxoPool.contains(new UTXO(tx.getHash(), allTxOutputs.indexOf(output))) // check case 1
-                                && output.value >= 0.0D); // check case 4
-        if (!case1And4Matched) {
-            return false;
-        }
-
-        List<Transaction.Input> allTxInputs = tx.getInputs();
-        boolean case2Matched = allTxInputs.stream()
-                .allMatch(input -> Crypto.verifySignature(tx.getOutput(input.outputIndex).address, tx.getRawTx(), input.signature));
-        if (!case2Matched) {
+        boolean case4Matched = allTxOutputs.stream().allMatch(output -> output.value >= 0.0D); // check case 4
+        if (!case4Matched) {
             return false;
         }
 
         // At last, check if sum of input values are at least as big as output values (see case 5)
-        return allTxOutputs.stream().mapToDouble(output -> output.value).sum()
-                <= allTxInputs.stream().mapToDouble(input -> tx.getOutput(input.outputIndex).value).sum();
+        return allTxOutputs.stream().mapToDouble(output -> output.value).sum() <=
+                allTxInputs.stream().mapToDouble(input -> {
+                    UTXO utxo = new UTXO(input.prevTxHash, input.outputIndex);
+                    return utxoPool.getTxOutput(utxo).value;
+                }).sum();
     }
 
     /**
