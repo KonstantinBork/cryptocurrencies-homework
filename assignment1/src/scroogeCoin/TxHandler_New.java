@@ -63,10 +63,10 @@ public class TxHandler_New {
             return false;
         }
 
-        boolean case3Matched = allTxOutputs.stream().distinct().count() == tx.numOutputs();
-        if (!case3Matched) {
-            return false;
-        }
+        //boolean case3Matched = allTxOutputs.stream().distinct().count() == tx.numOutputs();
+        //if (!case3Matched) {
+        //    return false;
+        //}
 
         boolean case4Matched = allTxOutputs.stream().allMatch(output -> output.value >= 0.0D); // check case 4
         if (!case4Matched) {

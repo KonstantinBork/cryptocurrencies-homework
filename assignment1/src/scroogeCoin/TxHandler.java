@@ -35,7 +35,7 @@ public class TxHandler {
             return false;
         }
 
-        boolean case1And4Matched = allTxOutputs.stream() // Inputs have to be taken here
+        boolean case1And4Matched = allTxOutputs.stream()
                 .allMatch(output ->
                         utxoPool.contains(new UTXO(tx.getHash(), allTxOutputs.indexOf(output))) // check case 1
                                 && output.value >= 0.0D); // check case 4
