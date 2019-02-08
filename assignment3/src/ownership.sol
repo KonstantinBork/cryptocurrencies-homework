@@ -2,10 +2,18 @@ pragma solidity >=0.4.22 <0.6.0;
 
 contract Ownership {
     
+    // Values needed to define the contract
     address payable public owner;
     bytes32 public hash;
     bool public sellable;
     uint public price;
+
+    // Private values to allow certain functionality
+    address payable private newOwner;
+    uint private highestBid;
+
+    // Allowing withdrawals of previous bids
+    mapping(address => uint) pendingReturns;
     
     constructor(bytes32 _hash, bool _sellable, uint _price) public {
         owner = msg.sender;
@@ -47,10 +55,11 @@ contract Ownership {
             "The provided hash is not correct."
         );
         
-        // Set sellable to true
+        // Set sellable to false
         sellable = false;
     }
 
+    // Buy function which behaves like an auction in fact
     function buy(bytes32 _hash) payable public {
         // At first, check if the item is sellable
         require(
@@ -69,15 +78,28 @@ contract Ownership {
             hash == _hash,
             "The provided hash is not correct."
         );
-        
+
+        // Check if the message sender is not the current owner
+        require(
+            msg.sender != owner,
+            "The current owner cannot buy the item."
+        );
+
+        require(
+            msg.value > highestBid,
+            "There already is a higher bid."
+        );
+
+        newOwner = msg.sender;
+        highestBid = msg.value;
+    }
+
+    // Only the current owner can accept the current bid and transfer the ownership then
+    function transferOwnership() public payable onlyOwner {
         // Receive ethers
         owner.transfer(msg.value);
         
         // Transfer ownership
-        transferOwnership(msg.sender);
-    }
-
-    function transferOwnership(address payable newOwner) private {
         owner = newOwner;
     }
 
