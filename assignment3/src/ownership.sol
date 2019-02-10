@@ -13,7 +13,7 @@ contract Ownership {
         string swarm_hash;
     }
   
-    // since we don't know the length of the used hash, we map a dynamic string to our Item
+    // since we do not know the length of the used hash, we map a dynamic string to our Item
     // this way the user can map a regular hash or a swarm hash for example to his item
     mapping(string => Item) items;
    
@@ -40,9 +40,9 @@ contract Ownership {
 
         items[_hash].owner = msg.sender;
         items[_hash].sellable = _sellable;
-        if(_sellable){
+        if (_sellable){
             items[_hash].price = _price;
-        }else{
+        } else {
             items[_hash].price = 0;
         }
         items[_hash].swarm_hash = _swarm_hash;
