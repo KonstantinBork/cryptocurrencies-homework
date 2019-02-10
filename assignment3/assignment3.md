@@ -2,12 +2,10 @@
 ## Sheet 3, submission by Konstantin Bork, Sidney Steimel & Marvin Ullrich
 
 ### Assignment. Ethereum Blockchain and Smart Contracts
-
-Description:
 Our smart contract offers the ability to proof that some item behind a hash existed since the timestamp it gets when it was created.
 These items with their temperproof timestamp can also be sold.
 
-Usecase:
+Use cases:
 - Proof you had an idea at some point. This can be useful for example when dealing with patents.
 - Proof can be sold.
 - Selling digital goods, for example copyrights of a picture.
@@ -25,8 +23,8 @@ Testing was done this way:
 8. In the dropdown click "createItem" and set values accordingly (e.g. "aaa", false, 1, "bbb"), click transact.
 Item has now been created and is not sellable
 9. Check if everything went smooth by calling "infoItem"-function, debug info should show the item and return its properties
-10. click "makeItemSellable" and set values accordingly (e.g. "aaa", 5), item is now buyable for others for 5 WEI! NOT ETH!
-11. select different account and click "buyItem", now buy the item for 5 WEI. Everything should work smoothly.
+10. Click "makeItemSellable" and set values accordingly (e.g. "aaa", 5), item is now buyable for others for 5 WEI, not ETH!
+11. Select a different account and click "buyItem", now buy the item for 5 WEI. Everything should work smoothly.
 12. Test other functions and play around with it, everything works as intended
 
 #### ownership.sol
@@ -147,13 +145,13 @@ Item has now been created and is not sellable
         }
     }
 
+#### Smart Contract Deployment
 
-    0x8648dab59cf4ee1b5e8d99275db6ab7fe3ceba10 # public address
-
-    eth.sendTransaction({from: eth.coinbase, to: '0x8648dab59cf4ee1b5e8d99275db6ab7fe3ceba10', value: '1000000000000000000000'})
-    "0x54d5996b6b18ef8c4e296f24d0ec800bdd4a4a124690c4a2224adbdb6724eb74" # 1000 Ether from Coinbase to us
+On the test server, we created a new account with the public address 0x8648dab59cf4ee1b5e8d99275db6ab7fe3ceba10 and transferred 1000 ETH
+from the coinbase to our new account. Then, we copied the WEB3DEPLOY code from Remix to geth and ran it.
 
     var ownershipContract = web3.eth.contract([{"constant":false,"inputs":[{"name":"_hash","type":"string"}],"name":"buyItem","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"},{"name":"_swarm_hash","type":"string"}],"name":"setSwarmInfo","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_hash","type":"string"}],"name":"infoItem","outputs":[{"name":"","type":"address"},{"name":"","type":"bool"},{"name":"","type":"uint256"},{"name":"","type":"string"},{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"}],"name":"deleteItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"},{"name":"_sellable","type":"bool"},{"name":"_price","type":"uint256"},{"name":"_swarm_hash","type":"string"}],"name":"createItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"}],"name":"makeItemNotSellable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"},{"name":"new_owner","type":"address"}],"name":"transferItem","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_hash","type":"string"},{"name":"_price","type":"uint256"}],"name":"makeItemSellable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]);
+
     var ownership = ownershipContract.new(
     {
         from: web3.eth.accounts[1], 
@@ -166,14 +164,19 @@ Item has now been created and is not sellable
         }
     })
 
+After some seconds, the confirmation message was displayed: 
+    
     Contract mined! address: 0xb741ffcfc4836fe624e859c89577ce1be0014467 transactionHash: 0xf0d4995133026b0b334c96851d6aef8665d0ff9f7a7c14af3fcd146419f7db25
 
+With this line, we get the block number (and some more information) of the contract transaction:
     eth.getTransactionReceipt("0xf0d4995133026b0b334c96851d6aef8665d0ff9f7a7c14af3fcd146419f7db25")
-    \# block number 93158
 
-    MD5 ("This is a secret I found!") = d7814a129206203670350bbf07353f0f
+Our contract is in block 93158. To test our contract on the test server, we created a MD5 hash [MD5 ("This is a secret I found!") = d7814a129206203670350bbf07353f0f] and created a new item for our account. Of course, you should not use MD5 in reality.
 
     ownership.createItem("d7814a129206203670350bbf07353f0f", false, 5, "")
     "0x530a9d0872ac485858f6913f4bab3c7015f861a703a53be60134695477fcc3fe"
+
+We again get the block number (and some more information) of the transaction created above:
     eth.getTransactionReceipt("0x530a9d0872ac485858f6913f4bab3c7015f861a703a53be60134695477fcc3fe")
-    \# block number 93225
+
+This transaction can be found in block 93225.
